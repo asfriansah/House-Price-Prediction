@@ -73,38 +73,52 @@ model, scaler, expected_columns, df_train = load_model_and_scaler()
 # ==========================================
 # 2. ANTARMUKA PENGGUNA (UI) - PANEL INPUT
 # ==========================================
+
+# SIDEBAR NAVIGATION
+st.sidebar.image("logo1.png", width=180)
+st.sidebar.title("Navigasi Dasbor")
+st.sidebar.markdown("Selamat datang, **Manajemen Senior**")
+st.sidebar.markdown("---")
+st.sidebar.info("💡 Dasbor ini didukung oleh Model Prediksi Ridge Regression")
+
+# Header Utama Aplikasi
 st.title("🏠 Aplikasi Prediksi Harga Rumah & Analisis Pasar Real Estate")
-st.write("Masukkan spesifikasi rumah untuk mendapatkan estimasi harga jual serta melihat tren pasar di sekitarnya.")
+
 st.markdown("---")
 
-if model is not None and scaler is not None:
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📐 Dimensi & Lokasi")
-        gr_liv_area = st.number_input("Luas Area Tinggal (GrLivArea) dalam sqft:", min_value=300, max_value=6000, value=1500)
-        lot_area = st.number_input("Luas Tanah (LotArea) dalam sqft:", min_value=500, max_value=50000, value=10000)
+tab1, tab2= st.tabs([
+    "🎯 Prediksi Harga Rumah",
+    "📈 Analisis Pasar Real Estate"
+])
+
+with tab1:
+    st.write("Masukkan spesifikasi rumah untuk mendapatkan estimasi harga jual serta melihat tren pasar di sekitarnya.")
+    if model is not None and scaler is not None:
+        col1, col2 = st.columns(2)
         
-        if df_train is not None:
-            available_neighborhoods = sorted(df_train['Neighborhood'].dropna().unique().astype(str))
-        else:
-            available_neighborhoods = ["CollgCr", "OldTown", "Edwards"]
+        with col1:
+            st.subheader("📐 Dimensi & Lokasi")
+            gr_liv_area = st.number_input("Luas Area Tinggal (GrLivArea) dalam sqft:", min_value=300, max_value=6000, value=1500)
+            lot_area = st.number_input("Luas Tanah (LotArea) dalam sqft:", min_value=500, max_value=50000, value=10000)
             
-        neighborhood = st.selectbox("Lingkungan / Lokasi (Neighborhood):", available_neighborhoods)
-        sale_condition = st.selectbox("Kondisi Penjualan (SaleCondition):", ["Normal", "Abnorml", "Partial", "Family", "Alloca", "AdjLand"])
+            if df_train is not None:
+                available_neighborhoods = sorted(df_train['Neighborhood'].dropna().unique().astype(str))
+            else:
+                available_neighborhoods = ["CollgCr", "OldTown", "Edwards"]
+                
+            neighborhood = st.selectbox("Lingkungan / Lokasi (Neighborhood):", available_neighborhoods)
+            sale_condition = st.selectbox("Kondisi Penjualan (SaleCondition):", ["Normal", "Abnorml", "Partial", "Family", "Alloca", "AdjLand"])
 
-    with col2:
-        st.subheader("🌟 Kualitas & Umur")
-        overall_qual = st.slider("Kualitas Material & Finis (OverallQual):", min_value=1, max_value=10, value=6)
-        overall_cond = st.slider("Rating Kondisi Rumah (OverallCond):", min_value=1, max_value=10, value=5)
-        
-        year_built = st.number_input("Tahun Rumah Dibangun (YearBuilt):", min_value=1800, max_value=2026, value=2000)
-        year_sold = st.number_input("Tahun Rumah Dijual (YrSold):", min_value=2006, max_value=2026, value=2026)
-        
-        house_age = year_sold - year_built
-        st.caption(f"Estimasi Usia Bangunan saat Dijual: **{house_age} Tahun**")
-
-    st.markdown("---")
+        with col2:
+            st.subheader("🌟 Kualitas & Umur")
+            overall_qual = st.slider("Kualitas Material & Finis (OverallQual):", min_value=1, max_value=10, value=6)
+            overall_cond = st.slider("Rating Kondisi Rumah (OverallCond):", min_value=1, max_value=10, value=5)
+            
+            year_built = st.number_input("Tahun Rumah Dibangun (YearBuilt):", min_value=1800, max_value=2026, value=2000)
+            year_sold = st.number_input("Tahun Rumah Dijual (YrSold):", min_value=2006, max_value=2026, value=2026)
+            
+            house_age = year_sold - year_built
+            st.caption(f"Estimasi Usia Bangunan saat Dijual: **{house_age} Tahun**")
     
     # ==========================================
     # 3. PROSES PREDIKSI JALUR AMAN & SELARAS
@@ -148,45 +162,48 @@ if model is not None and scaler is not None:
             harga_asli = np.expm1(pred_log)[0]
             
             # Tampilkan Hasil Jual Ke Dashboard UI
-            st.success("🎉 Prediksi Berhasil Dilakukan!")
-            st.metric(label=f"Estimasi Nilai Pasar Rumah di {neighborhood}", value=f"${harga_asli:,.2f}")
-            
+            col3, col4 = st.columns(2)
+            with col3:
+                st.success("🎉 Prediksi Berhasil Dilakukan!")
+            with col4:
+                st.metric(label=f"Estimasi Nilai Pasar Rumah di {neighborhood}", value=f"${harga_asli:,.2f}")
+
             # ==========================================
             # 4. VISUALISASI GRAFIK PASAR
             # ==========================================
-            if df_train is not None:
-                st.markdown("---")
-                st.subheader(f"📊 Analisis & Perbandingan Pasar Terhadap Wilayah {neighborhood}")
-                
-                chart_col1, chart_col2 = st.columns(2)
-                
-                with chart_col1:
-                    st.write(f"**1. Distribusi Harga Rumah di Lingkungan {neighborhood}**")
-                    df_filtered = df_train[df_train['Neighborhood'].astype(str) == str(neighborhood)]
-                    fig, ax = plt.subplots(figsize=(6, 4))
-                    sns.histplot(pd.to_numeric(df_filtered['SalePrice'], errors='coerce').dropna(), kde=True, color="teal", ax=ax)
-                    ax.axvline(harga_asli, color='red', linestyle='--', linewidth=2, label=f'Prediksi Anda: ${harga_asli:,.0f}')
-                    ax.set_xlabel("Harga Jual ($)")
-                    ax.set_ylabel("Jumlah Rumah")
-                    ax.legend()
-                    st.pyplot(fig)
+            with tab2:
+                if df_train is not None:
+                    st.subheader(f"📊 Analisis & Perbandingan Pasar Terhadap Wilayah {neighborhood}")
+                    
+                    chart_col1, chart_col2 = st.columns(2)
+                    
+                    with chart_col1:
+                        st.write(f"**1. Distribusi Harga Rumah di Lingkungan {neighborhood}**")
+                        df_filtered = df_train[df_train['Neighborhood'].astype(str) == str(neighborhood)]
+                        fig, ax = plt.subplots(figsize=(6, 4))
+                        sns.histplot(pd.to_numeric(df_filtered['SalePrice'], errors='coerce').dropna(), kde=True, color="teal", ax=ax)
+                        ax.axvline(harga_asli, color='red', linestyle='--', linewidth=2, label=f'Prediksi Anda: ${harga_asli:,.0f}')
+                        ax.set_xlabel("Harga Jual ($)")
+                        ax.set_ylabel("Jumlah Rumah")
+                        ax.legend()
+                        st.pyplot(fig)
 
-                with chart_col2:
-                    st.write("**2. Rata-rata Harga Rumah Berdasarkan Kualitas Material**")
-                    df_train['SalePrice'] = pd.to_numeric(df_train['SalePrice'], errors='coerce')
-                    df_qual_price = df_train.groupby('OverallQual')['SalePrice'].mean().reset_index()
-                    fig2, ax2 = plt.subplots(figsize=(6, 4))
-                    sns.barplot(data=df_qual_price, x='OverallQual', y='SalePrice', palette='Blues_d', ax=ax2)
-                    ax2.axvline(overall_qual - 1, color='orange', linestyle='-', linewidth=3, label=f'Kualitas Anda: {overall_qual}')
-                    ax2.set_xlabel("Rating Kualitas (1-10)")
-                    ax2.set_ylabel("Rata-rata Harga ($)")
-                    ax2.legend()
-                    st.pyplot(fig2)
-                
-                st.write("**3. Tren Rata-rata Harga Jual Rumah Berdasarkan Tahun Konstruksi (Year Built)**")
-                df_train['YearBuilt'] = pd.to_numeric(df_train['YearBuilt'], errors='coerce')
-                df_trend = df_train.groupby('YearBuilt')['SalePrice'].mean().reset_index()
-                st.line_chart(data=df_trend, x='YearBuilt', y='SalePrice', use_container_width=True)
+                    with chart_col2:
+                        st.write("**2. Rata-rata Harga Rumah Berdasarkan Kualitas Material**")
+                        df_train['SalePrice'] = pd.to_numeric(df_train['SalePrice'], errors='coerce')
+                        df_qual_price = df_train.groupby('OverallQual')['SalePrice'].mean().reset_index()
+                        fig2, ax2 = plt.subplots(figsize=(6, 4))
+                        sns.barplot(data=df_qual_price, x='OverallQual', y='SalePrice', palette='Blues_d', ax=ax2)
+                        ax2.axvline(overall_qual - 1, color='orange', linestyle='-', linewidth=3, label=f'Kualitas Anda: {overall_qual}')
+                        ax2.set_xlabel("Rating Kualitas (1-10)")
+                        ax2.set_ylabel("Rata-rata Harga ($)")
+                        ax2.legend()
+                        st.pyplot(fig2)
+                    
+                    st.write("**3. Tren Rata-rata Harga Jual Rumah Berdasarkan Tahun Konstruksi (Year Built)**")
+                    df_train['YearBuilt'] = pd.to_numeric(df_train['YearBuilt'], errors='coerce')
+                    df_trend = df_train.groupby('YearBuilt')['SalePrice'].mean().reset_index()
+                    st.line_chart(data=df_trend, x='YearBuilt', y='SalePrice', use_container_width=True)
 
         except Exception as e:
             st.error(f"Terjadi kesalahan saat pemrosesan fitur ke model: {e}")
